@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Data & Models
+/data/
+*.pth
+checkpoints/
+
+# IDE / OS specific
+.vscode/
+.DS_Store
