@@ -27,6 +27,9 @@ def train_mae_one_epoch(model, dataloader, optimizer, device):
         loss = outputs.loss  # The Hugging Face model calculates the loss internally
 
         # Backward pass and optimization
+        if isinstance(model, nn.DataParallel):
+            loss = loss.mean()
+            
         loss.backward()
         
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
