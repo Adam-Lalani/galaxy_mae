@@ -1,5 +1,6 @@
 import torch
-import torch.nn as nn # Import nn for DataParallel
+import torch.nn as nn 
+from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR
 import time
 import wandb
 from data import get_dataloaders
