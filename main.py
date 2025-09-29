@@ -3,7 +3,7 @@ import time
 import wandb
 from data import get_dataloaders
 from model import create_mae_model
-from training_utils import train_mae_one_epoch, evaluate_linear_probe
+from train_and_eval import train_mae_one_epoch, evaluate_linear_probe
 
 
 if __name__ == '__main__':
