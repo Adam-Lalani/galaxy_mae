@@ -98,4 +98,5 @@ def evaluate_linear_probe(
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            print(f"Probing Epoch {epoch+1}/{probe_epochs} | Accuracy: {correct/total:.4f}")
+        print(f"Probing Epoch {epoch+1}/{probe_epochs} | Accuracy: {correct/total:.4f}")
+    return correct/total
