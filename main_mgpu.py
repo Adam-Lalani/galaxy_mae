@@ -9,6 +9,13 @@ from train_and_eval import train_mae_one_epoch, evaluate_linear_probe
 
 
 if __name__ == '__main__':
+    # --- Argument Parser for Resuming ---
+    parser = argparse.ArgumentParser(description="Galaxy MAE Training")
+    parser.add_argument("--resume_checkpoint", type=str, default=None, help="Path to checkpoint to resume training from.")
+    parser.add_argument("--start_epoch", type=int, default=1, help="Epoch to start training from (for resuming).")
+    parser.add_argument("--resume_wandb_id", type=str, default=None, help="W&B run ID to resume logging to a previous run.")
+    args = parser.parse_args()
+    
     # --- HYPERPARAMETERS ---
     config = {
         # General Training Settings
@@ -35,7 +42,7 @@ if __name__ == '__main__':
     DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 
     # --- 1. SETUP ---
-    wandb.init(project="galaxy-mae-pretraining", config=config, entity="adam_lalani-brown-university")
+    wandb.init(project="galaxy-mae-pretraining", config=config, entity="adam_lalani-brown-university", id=args.resume_wandb_id, resume="allow")
     
     print(f"Using device: {DEVICE}")
     
@@ -51,6 +58,12 @@ if __name__ == '__main__':
         encoder_heads=wandb.config.encoder_heads, decoder_embed_dim=wandb.config.decoder_embed_dim, 
         decoder_depth=wandb.config.decoder_depth, decoder_heads=wandb.config.decoder_heads
     )
+    
+    # --- Load Checkpoint if Provided ---
+    if args.resume_checkpoint:
+        print(f"Resuming training from checkpoint: {args.resume_checkpoint}")
+        mae_model.load_state_dict(torch.load(args.resume_checkpoint, map_location=DEVICE))
+
 
     if DEVICE == 'cuda' and torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs!")
@@ -98,7 +111,7 @@ if __name__ == '__main__':
         }
         
         # c. Evaluate with Linear Probe periodically (every 10 epochs)
-        if epoch % 10 == 0:
+        if epoch % 25 == 0:
             encoder_to_probe = mae_model.module.vit if isinstance(mae_model, nn.DataParallel) else mae_model.vit
             probe_accuracy = evaluate_linear_probe(
                 encoder=encoder_to_probe, 
@@ -117,7 +130,7 @@ if __name__ == '__main__':
         wandb.log(log_metrics)
         
         # e. Save a checkpoint periodically
-        if epoch % 10 == 0:
+        if epoch % 25 == 0:
             checkpoint_path = f"mae_galaxy_epoch_{epoch}.pth"
             # Save the state_dict of the underlying model, not the DataParallel wrapper
             model_to_save = mae_model.module if isinstance(mae_model, nn.DataParallel) else mae_model
