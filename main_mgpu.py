@@ -3,7 +3,7 @@ import torch.nn as nn # Import nn for DataParallel
 import time
 import wandb
 from data import get_dataloaders
-from model import create_mae_model
+from mae_model import create_mae_model
 from train_and_eval import train_mae_one_epoch, evaluate_linear_probe
 
 
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 
     # --- 1. SETUP ---
-    wandb.init(project="galaxy-mae-pretraining", config=config)
+    wandb.init(project="galaxy-mae-pretraining", config=config, entity="adam_lalani-brown-university")
     
     print(f"Using device: {DEVICE}")
     
