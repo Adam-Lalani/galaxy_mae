@@ -10,7 +10,7 @@ def create_mae_model(
     decoder_embed_dim=128,
     decoder_depth=4,
     decoder_heads=4,
-    mlp_ratio=4.0
+    mlp_ratio=4.0,
 ):
     """
     Creates a Masked Autoencoder (MAE) model with a Vision Transformer (ViT)

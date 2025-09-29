@@ -15,6 +15,9 @@ if __name__ == '__main__':
         "num_workers": 4,
         "lr_mae": 1e-4,
         "probe_epochs": 10,
+        "warmup_epochs": 10,
+        "min_lr": 1e-6,
+        "weight_decay": 0.05,
         
         # MAE Model Configuration - Slightly larger for a longer run
         "image_size": 256,

@@ -28,6 +28,8 @@ def train_mae_one_epoch(model, dataloader, optimizer, device):
 
         # Backward pass and optimization
         loss.backward()
+        
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
         total_loss += loss.item()
@@ -47,58 +49,40 @@ def evaluate_linear_probe(
 ):
     """
     Evaluates the quality of the encoder's features using a linear probe.
-
-    Args:
-        encoder (nn.Module): The encoder part of the MAE model (e.g., model.vit).
-        train_loader (DataLoader): DataLoader for the labeled training data.
-        test_loader (DataLoader): DataLoader for the labeled testing data.
-        device (str): The device to run on ('cuda' or 'cpu').
-        num_classes (int): The number of classes for classification.
-        probe_epochs (int): Number of epochs to train the linear probe.
-        lr (float): Learning rate for the linear probe's optimizer.
-
-    Returns:
-        float: The final test accuracy of the trained linear probe.
     """
     print("--- Starting Linear Probe Evaluation ---")
     
     # 1. Freeze the encoder's weights
     for param in encoder.parameters():
         param.requires_grad = False
-    encoder.eval() # Set encoder to evaluation mode
+    encoder.eval()
 
-    # 2. Create and prepare the linear classifier
+    # 2. Create and prepare the linear classifier (the "probe")
     probe = nn.Linear(encoder.config.hidden_size, num_classes).to(device)
     optimizer = torch.optim.AdamW(probe.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
-    # 3. Train the linear probe
+    # 3. Train the linear probe with a new progress bar
     for epoch in range(probe_epochs):
         probe.train()
-        for batch in train_loader:
+        for batch in tqdm(train_loader, desc=f"Probing Epoch {epoch+1}/{probe_epochs}", leave=False):
             images = batch['pixel_values'].to(device)
             labels = batch['label'].to(device)
 
-            # Extract features from the frozen encoder
             with torch.no_grad():
-                # The encoder's output is a tuple; we want the last_hidden_state
                 features = encoder(pixel_values=images).last_hidden_state
-                # Extract the [CLS] token feature for classification
                 cls_feature = features[:, 0]
             
-            # Forward pass through the probe
             outputs = probe(cls_feature)
             loss = criterion(outputs, labels)
             
-            # Backward pass and optimization for the probe
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
     # 4. Evaluate the trained probe on the test set
     probe.eval()
-    correct = 0
-    total = 0
+    correct, total = 0, 0
     with torch.no_grad():
         for batch in test_loader:
             images = batch['pixel_values'].to(device)
@@ -111,3 +95,4 @@ def evaluate_linear_probe(
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            print(f"Probing Epoch {epoch+1}/{probe_epochs} | Accuracy: {correct/total:.4f}")

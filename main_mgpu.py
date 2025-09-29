@@ -16,6 +16,9 @@ if __name__ == '__main__':
         "num_workers": 4,
         "lr_mae": 1e-4,
         "probe_epochs": 10,
+        "warmup_epochs": 10,
+        "min_lr": 1e-6,
+        "weight_decay": 0.05,
         
         # MAE Model Configuration - Slightly larger for a longer run
         "image_size": 256,
@@ -55,7 +58,27 @@ if __name__ == '__main__':
     mae_model.to(DEVICE)
 
     model_to_optimize = mae_model.module if isinstance(mae_model, nn.DataParallel) else mae_model
-    mae_optimizer = torch.optim.AdamW(model_to_optimize.parameters(), lr=wandb.config.lr_mae)
+    
+    
+    mae_optimizer = torch.optim.AdamW(
+        model_to_optimize.parameters(), 
+        lr=wandb.config.lr_mae, 
+        weight_decay=wandb.config.weight_decay
+    )
+
+    # --- Setup Learning Rate Scheduler ---
+    warmup_scheduler = LinearLR(mae_optimizer, start_factor=0.01, total_iters=wandb.config.warmup_epochs)
+    main_scheduler = CosineAnnealingLR(
+        mae_optimizer, 
+        T_max=wandb.config.epochs - wandb.config.warmup_epochs, 
+        eta_min=wandb.config.min_lr
+    )
+    scheduler = SequentialLR(
+        mae_optimizer, 
+        schedulers=[warmup_scheduler, main_scheduler], 
+        milestones=[wandb.config.warmup_epochs]
+    )
+
 
     # --- 2. MAIN TRAINING LOOP ---
     print("\nStarting MAE Pre-training and Evaluation...")
@@ -85,6 +108,9 @@ if __name__ == '__main__':
             )
             # Add the accuracy to our log dictionary
             log_metrics["probe_accuracy"] = probe_accuracy
+            
+            scheduler.step()
+            log_metrics["learning_rate"] = scheduler.get_last_lr()[0]
         
         # d. Log all collected metrics to W&B in a single call
         wandb.log(log_metrics)
