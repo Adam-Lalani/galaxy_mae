@@ -6,7 +6,15 @@ __pycache__/
 /data/
 *.pth
 checkpoints/
+/models/
 
 # IDE / OS specific
 .vscode/
 .DS_Store
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Visualization notebooks
+/visualize_checkpoint.ipynb
+
