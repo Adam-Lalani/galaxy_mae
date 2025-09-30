@@ -41,7 +41,7 @@ def log_reconstruction_image(model, image, train_mean, train_std, device, epoch)
 
         # --- Create the Masked Image ---
         patches = model_to_visualize.patchify(image_batch)
-        patches[mask] = 0 # Set masked patches to black
+        bool_mask = mask.bool() # Set masked patches to black
         masked_image_tensor = model_to_visualize.unpatchify(patches).squeeze(0)
         
         # --- Get the Reconstructed Image ---
