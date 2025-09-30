@@ -29,7 +29,7 @@ if __name__ == '__main__':
         "min_lr": 1e-6,
         "weight_decay": 0.05,
         
-        # MAE Model Configuration - Slightly larger for a longer run
+        # MAE Model Configuration 
         "image_size": 256,
         "patch_size": 32,
         "embed_dim": 384,
@@ -37,7 +37,8 @@ if __name__ == '__main__':
         "encoder_heads": 8,
         "decoder_embed_dim": 192,
         "decoder_depth": 6,
-        "decoder_heads": 6
+        "decoder_heads": 6,
+        "mlp_ratio": 4.0
     }   
 
     DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
@@ -57,7 +58,8 @@ if __name__ == '__main__':
         image_size=wandb.config.image_size, patch_size=wandb.config.patch_size, 
         embed_dim=wandb.config.embed_dim, encoder_depth=wandb.config.encoder_depth, 
         encoder_heads=wandb.config.encoder_heads, decoder_embed_dim=wandb.config.decoder_embed_dim, 
-        decoder_depth=wandb.config.decoder_depth, decoder_heads=wandb.config.decoder_heads
+        decoder_depth=wandb.config.decoder_depth, decoder_heads=wandb.config.decoder_heads,
+        mlp_ratio=wandb.config.mlp_ratio
     )
     
     # --- Load Checkpoint if Provided ---
@@ -111,8 +113,8 @@ if __name__ == '__main__':
             "mae_loss": avg_mae_loss,
         }
         
-        # c. Evaluate with Linear Probe periodically (every 10 epochs)
-        if epoch % 25 == 0:
+        # c. Evaluate with Linear Probe at the end 
+        if epoch % epoch == 0:
             encoder_to_probe = mae_model.module.vit if isinstance(mae_model, nn.DataParallel) else mae_model.vit
             probe_accuracy = evaluate_linear_probe(
                 encoder=encoder_to_probe, 

@@ -39,6 +39,8 @@ def calculate_mean_std(dataset_raw, image_size=256, batch_size=64, num_workers=0
     mean /= num_samples
     std /= num_samples
     
+    dataset_raw.set_transform(None)
+    
     return mean.tolist(), std.tolist()
 
 
@@ -110,5 +112,5 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
     )
     
     print("\nDataloaders created successfully.")
-    return mae_loader, probe_train_loader, probe_test_loader
+    return mae_loader, probe_train_loader, probe_test_loader, train_mean, train_std
 
