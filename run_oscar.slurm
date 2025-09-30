@@ -17,9 +17,13 @@ echo "Loading required modules..."
 module load anaconda
 module load cuda
 
-# Activate your specific conda environment
+# --- FIX: Explicitly initialize the conda shell for the script ---
+echo "Initializing Conda..."
+eval "$(conda shell.bash hook)"
+
+# Now, activate your specific conda environment using the standard command
 echo "Activating conda environment..."
-conda activate csci1470  
+conda activate csci1470
 
 # --- Job Execution ---
 echo "Navigating to submission directory: $SLURM_SUBMIT_DIR"
