@@ -39,12 +39,21 @@ def log_reconstruction_image(model, image, train_mean, train_std, device, epoch)
         
         # --- Create Full Reconstruction (model's prediction for ALL patches) ---
         # outputs.logits contains predictions for ALL patches
-        reconstructed_patches = outputs.logits.detach()  # (batch, num_patches, patch_size^2 * 3)
-        full_reconstruction_tensor = model_to_visualize.unpatchify(reconstructed_patches).squeeze(0)
+        pred_patches = outputs.logits.detach()  # (B, N, P)
+
+        if getattr(model_to_visualize.config, "norm_pix_loss", True):
+            # compute per-patch stats from targets (i.e., original_patches)
+            patch_mean = original_patches.mean(dim=-1, keepdim=True)            # (B, N, 1)
+            patch_var  = original_patches.var(dim=-1, keepdim=True, unbiased=False)
+            patch_std  = (patch_var + 1e-6).sqrt()
+
+            # undo the per-patch normalization
+            pred_patches = pred_patches * patch_std + patch_mean  # back to dataset-normalized pixel space
         
-        # --- Create Hybrid (visible from original + masked from reconstruction) ---
-        # This shows how well the model reconstructs the masked regions
-        hybrid_patches = original_patches * (1 - mask_expanded) + reconstructed_patches * mask_expanded
+        full_reconstruction_tensor = model_to_visualize.unpatchify(pred_patches).squeeze(0)
+
+        # --- Hybrid: visible from original + masked from reconstruction ---
+        hybrid_patches = original_patches * (1 - mask_expanded) + pred_patches * mask_expanded
         hybrid_reconstruction_tensor = model_to_visualize.unpatchify(hybrid_patches).squeeze(0)
 
         # --- Plotting ---
