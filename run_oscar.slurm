@@ -36,4 +36,3 @@ echo "Starting Python script for MAE pre-training..."
 python -u main_large.py
 
 echo "Job finished at $(date)"
-```
