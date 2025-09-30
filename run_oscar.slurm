@@ -1,10 +1,9 @@
 #!/bin/bash
 
-
 #SBATCH -p gpu                # Specify the 'gpu' partition
 #SBATCH --gres=gpu:2          # Request 1 GPU. Change to 'gpu:2' for two GPUs.
 #SBATCH -n 1                  # Number of tasks (almost always 1 for single-node jobs)
-#SBATCH -c 8                  # Number of CPUs per task. 8 is a good starting point for data loading.
+#SBATCH -c 4                  # Number of CPUs per task. 8 is a good starting point for data loading.
 #SBATCH --mem=64G             # Request 32GB of memory. Increase if you get memory errors.
 #SBATCH -t 36:00:00           # Set a time limit of 12 hours (HH:MM:SS)
 #SBATCH -J galaxy-mae         # A descriptive name for your job
@@ -20,7 +19,7 @@ module load cuda
 
 # Activate your specific conda environment
 echo "Activating conda environment..."
-source activate csci1470  
+conda activate csci1470  
 
 # --- Job Execution ---
 echo "Navigating to submission directory: $SLURM_SUBMIT_DIR"
