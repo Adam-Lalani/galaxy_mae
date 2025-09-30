@@ -14,21 +14,21 @@ if __name__ == '__main__':
     config = {
         
         # Pretraining
-        "epochs": 2, ## 400
+        "epochs": 400, ## 400
         "batch_size": 64,        
         "num_workers": 4,
         "lr_mae": 1e-4,        
-        "probe_epochs": 2, ## 10
-        "warmup_epochs": 1,     ##40
+        "probe_epochs": 10, ## 10
+        "warmup_epochs": 40,     ##40
         "min_lr": 1e-6,
         "weight_decay": 0.05,
         "adam_betas": (0.9, 0.95),
         "seed": 27,
         
         # Finetuning
-        "finetune_epochs": 2, ## 50
+        "finetune_epochs": 50, ## 50
         "finetune_lr": 1e-5,
-        "finetune_warmup_epochs": 1,  ##5
+        "finetune_warmup_epochs": 5,  ##5
         "finetune_min_lr": 1e-6,
         
         # MAE Model Configuration - ViT-Base
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         wandb.log(log_metrics, step=epoch)
         
         # Save every 25 epochs
-        if epoch % 1 == 0: ## 25
+        if epoch % 25 == 0: ## 25
             print(f"--- Epoch {epoch}: Logging reconstruction image and saving checkpoint ---")
             
             # Log reconstruction image
