@@ -44,6 +44,8 @@ def create_mae_model(
         decoder_num_hidden_layers=decoder_depth,
         decoder_num_attention_heads=decoder_heads,
         decoder_intermediate_size=int(decoder_embed_dim * mlp_ratio),
+        mask_ratio=0.75,
+        norm_pix_loss=True
     )
 
     # 2. Create the model from the configuration.

@@ -61,8 +61,23 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
     print(f"\nCalculated Mean: {train_mean}")
     print(f"Calculated Std: {train_std}")
 
-    # 2. train and test transforms
-    train_preprocess = transforms.Compose([
+    # 2. Create transforms for MAE (no augmentation) and probe (with augmentation)
+    # MAE pre-training: NO augmentation for better reconstruction
+    mae_preprocess = transforms.Compose([
+        transforms.Resize((image_size, image_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=train_mean, std=train_std),
+    ])
+    
+    # Linear probe: NO augmentation (standard practice - measures representation quality)
+    probe_preprocess = transforms.Compose([
+        transforms.Resize((image_size, image_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=train_mean, std=train_std),
+    ])
+    
+    # Fine-tuning: YES augmentation (helps prevent overfitting during full training)
+    finetune_train_preprocess = transforms.Compose([
         transforms.Resize((image_size, image_size)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
@@ -71,14 +86,25 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
         transforms.Normalize(mean=train_mean, std=train_std),
     ])
     
+    # Test: no augmentation
     test_preprocess = transforms.Compose([
         transforms.Resize((image_size, image_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean=train_mean, std=train_std),
     ])
 
-    def train_transform(examples):
-        examples["pixel_values"] = [train_preprocess(image.convert("RGB")) for image in examples["image"]]
+    def mae_transform(examples):
+        examples["pixel_values"] = [mae_preprocess(image.convert("RGB")) for image in examples["image"]]
+        del examples["image"]
+        return examples
+    
+    def probe_transform(examples):
+        examples["pixel_values"] = [probe_preprocess(image.convert("RGB")) for image in examples["image"]]
+        del examples["image"]
+        return examples
+    
+    def finetune_train_transform(examples):
+        examples["pixel_values"] = [finetune_train_preprocess(image.convert("RGB")) for image in examples["image"]]
         del examples["image"]
         return examples
     
@@ -87,16 +113,27 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
         del examples["image"]
         return examples
 
-    # Apply transforms to datasets using set_transform to avoid disk space issues
-    dataset['train'].set_transform(train_transform)
-    dataset['test'].set_transform(test_transform)
+    # Create separate dataset views with different transforms
+    # MAE uses all data without augmentation
+    train_ds_mae = dataset['train']
+    test_ds_mae = dataset['test']
+    train_ds_mae.set_transform(mae_transform)
+    test_ds_mae.set_transform(mae_transform)
     
-    # 3. Create the individual datasets
-    train_ds = dataset['train']
-    test_ds = dataset['test']
+    # Probe uses data WITHOUT augmentation (standard practice)
+    train_ds_probe = dataset['train']
+    test_ds_probe = dataset['test']
+    train_ds_probe.set_transform(probe_transform)
+    test_ds_probe.set_transform(test_transform)
     
-    # use all for pre-training
-    full_dataset_for_mae = torch.utils.data.ConcatDataset([train_ds, test_ds])
+    # Fine-tuning uses data WITH augmentation
+    train_ds_finetune = dataset['train']
+    test_ds_finetune = dataset['test']
+    train_ds_finetune.set_transform(finetune_train_transform)
+    test_ds_finetune.set_transform(test_transform)
+    
+    # 3. Create combined dataset for MAE (all data, no augmentation)
+    full_dataset_for_mae = torch.utils.data.ConcatDataset([train_ds_mae, test_ds_mae])
     
     # 4. Create the DataLoaders
     mae_loader = torch.utils.data.DataLoader(
@@ -104,13 +141,25 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
     )
     
     probe_train_loader = torch.utils.data.DataLoader(
-        train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True
+        train_ds_probe, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True
     )
     
     probe_test_loader = torch.utils.data.DataLoader(
-        test_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True
+        test_ds_probe, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True
+    )
+    
+    finetune_train_loader = torch.utils.data.DataLoader(
+        train_ds_finetune, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True
+    )
+    
+    finetune_test_loader = torch.utils.data.DataLoader(
+        test_ds_finetune, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True
     )
     
     print("\nDataloaders created successfully.")
-    return mae_loader, probe_train_loader, probe_test_loader, train_mean, train_std
+    print(f"  - MAE loader: No augmentation (for reconstruction)")
+    print(f"  - Probe loaders: No augmentation (for evaluation)")
+    print(f"  - Fine-tune loaders: WITH augmentation (for training)")
+    
+    return mae_loader, probe_train_loader, probe_test_loader, finetune_train_loader, finetune_test_loader, train_mean, train_std
 

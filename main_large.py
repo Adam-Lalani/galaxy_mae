@@ -14,21 +14,21 @@ if __name__ == '__main__':
     config = {
         
         # Pretraining
-        "epochs": 400,           
+        "epochs": 2, ## 400
         "batch_size": 64,        
         "num_workers": 4,
         "lr_mae": 1e-4,        
-        "probe_epochs": 50,
-        "warmup_epochs": 40,     
+        "probe_epochs": 2, ## 10
+        "warmup_epochs": 1,     ##40
         "min_lr": 1e-6,
         "weight_decay": 0.05,
         "adam_betas": (0.9, 0.95),
         "seed": 27,
         
         # Finetuning
-        "finetune_epochs": 50,  
+        "finetune_epochs": 2, ## 50
         "finetune_lr": 1e-5,
-        "finetune_warmup_epochs": 5,  
+        "finetune_warmup_epochs": 1,  ##5
         "finetune_min_lr": 1e-6,
         
         # MAE Model Configuration - ViT-Base
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     
     print(f"Using device: {DEVICE}")
     
-    mae_loader, probe_train_loader, probe_test_loader, train_mean, train_std = get_dataloaders(
+    mae_loader, probe_train_loader, probe_test_loader, finetune_train_loader, finetune_test_loader, train_mean, train_std = get_dataloaders(
         batch_size=wandb.config.batch_size, 
         image_size=wandb.config.image_size, 
         num_workers=wandb.config.num_workers
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         wandb.log(log_metrics, step=epoch)
         
         # Save every 25 epochs
-        if epoch % 25 == 0: 
+        if epoch % 1 == 0: ## 25
             print(f"--- Epoch {epoch}: Logging reconstruction image and saving checkpoint ---")
             
             # Log reconstruction image
@@ -123,10 +123,10 @@ if __name__ == '__main__':
         probe_epochs=wandb.config.probe_epochs
     )
     
-    # Run Full Fine-tuning Evaluation
+    # Run Full Fine-tuning Evaluation (with augmented data)
     final_finetune_accuracy = fine_tune_and_evaluate(
-        encoder=encoder_to_probe, train_loader=probe_train_loader,
-        test_loader=probe_test_loader, device=DEVICE,
+        encoder=encoder_to_probe, train_loader=finetune_train_loader,
+        test_loader=finetune_test_loader, device=DEVICE,
         finetune_epochs=wandb.config.finetune_epochs,
         lr=wandb.config.finetune_lr,
         warmup_epochs=wandb.config.finetune_warmup_epochs,
@@ -140,8 +140,8 @@ if __name__ == '__main__':
     })
     
     print(f"\n--- Final Results ---")
-    print(f"Linear Probe Accuracy: {final_probe_accuracy:.4f}%")
-    print(f"Fine-tuning Accuracy: {final_finetune_accuracy:.4f}%")
+    print(f"Linear Probe Accuracy: {final_probe_accuracy*100:.2f}%")
+    print(f"Fine-tuning Accuracy: {final_finetune_accuracy*100:.2f}%")
     print(f"Total Experiment Time: {(time.time() - start_time) / 3600:.2f} hours")
 
     wandb.finish()
