@@ -10,24 +10,24 @@ if __name__ == '__main__':
     # --- HYPERPARAMETERS ---
     config = {
         # General Training Settings
-        "epochs": 150,
+        "epochs": 400,
         "batch_size": 64,
         "num_workers": 4,
-        "lr_mae": 1e-4,
-        "probe_epochs": 10,
-        "warmup_epochs": 10,
+        "lr_mae": 5e-5,
+        "probe_epochs": 40,
+        "warmup_epochs": 40,
         "min_lr": 1e-6,
         "weight_decay": 0.05,
         
         # MAE Model Configuration - Slightly larger for a longer run
         "image_size": 256,
-        "patch_size": 32,
-        "embed_dim": 384,
-        "encoder_depth": 8,
-        "encoder_heads": 8,
-        "decoder_embed_dim": 192,
-        "decoder_depth": 6,
-        "decoder_heads": 6
+        "patch_size": 16,
+        "embed_dim": 756,
+        "encoder_depth": 12,
+        "encoder_heads": 12,
+        "decoder_embed_dim": 512,
+        "decoder_depth": 8,
+        "decoder_heads": 16
     }   
 
     DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'

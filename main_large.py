@@ -15,9 +15,9 @@ if __name__ == '__main__':
         
         # Pretraining
         "epochs": 400, ## 400
-        "batch_size": 64,        
+        "batch_size": 32,        
         "num_workers": 4,
-        "lr_mae": 1e-4,        
+        "lr_mae": 5e-5,        
         "probe_epochs": 10, ## 10
         "warmup_epochs": 40,     ##40
         "min_lr": 1e-6,
@@ -32,7 +32,7 @@ if __name__ == '__main__':
         "finetune_min_lr": 1e-6,
         
         # MAE Model Configuration - ViT-Base
-        "image_size": 256,
+        "image_size": 224,
         "patch_size": 16,        
         "embed_dim": 768,         
         "encoder_depth": 12,     
