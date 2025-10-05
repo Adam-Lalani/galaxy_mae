@@ -64,7 +64,7 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
     # 2. Create transforms for MAE (no augmentation) and probe (with augmentation)
     # MAE pre-training: NO augmentation for better reconstruction
     mae_preprocess = transforms.Compose([
-        transforms.CenterCrop(180),
+        transforms.CenterCrop(120),
         transforms.Resize((image_size, image_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean=train_mean, std=train_std),
@@ -72,7 +72,7 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
     
     # Linear probe: NO augmentation (standard practice - measures representation quality)
     probe_preprocess = transforms.Compose([
-        transforms.CenterCrop(180),
+        transforms.CenterCrop(120),
         transforms.Resize((image_size, image_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean=train_mean, std=train_std),
@@ -80,7 +80,7 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
     
     # Fine-tuning: YES augmentation (helps prevent overfitting during full training)
     finetune_train_preprocess = transforms.Compose([
-        transforms.CenterCrop(180),
+        transforms.CenterCrop(120),
         transforms.Resize((image_size, image_size)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
@@ -91,7 +91,7 @@ def get_dataloaders(batch_size=64, image_size=256, num_workers=0):
     
     # Test: no augmentation
     test_preprocess = transforms.Compose([
-        transforms.CenterCrop(180),
+        transforms.CenterCrop(120),
         transforms.Resize((image_size, image_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean=train_mean, std=train_std),
