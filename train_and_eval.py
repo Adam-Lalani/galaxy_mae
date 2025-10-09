@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 from tqdm import tqdm
 
-def train_mae_one_epoch(model, dataloader, optimizer, device):
+def train_mae_one_epoch(model, dataloader, optimizer, device, scaler=None):
     """
     Trains the Masked Autoencoder (MAE) model for one epoch.
 
@@ -12,6 +12,7 @@ def train_mae_one_epoch(model, dataloader, optimizer, device):
         dataloader (DataLoader): DataLoader for the pre-training data.
         optimizer (Optimizer): The optimizer for the model.
         device (str): The device to train on ('cuda' or 'cpu').
+        scaler (GradScaler, optional): Mixed precision scaler for CUDA.
 
     Returns:
         float: The average reconstruction loss for the epoch.
@@ -24,17 +25,35 @@ def train_mae_one_epoch(model, dataloader, optimizer, device):
 
         # Forward pass
         optimizer.zero_grad()
-        outputs = model(pixel_values=images)
-        loss = outputs.loss  # The Hugging Face model calculates the loss internally
-
-        # Backward pass and optimization
-        if isinstance(model, nn.DataParallel):
-            loss = loss.mean()
-            
-        loss.backward()
         
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
+        if scaler is not None:
+            # Mixed precision training
+            with torch.cuda.amp.autocast():
+                outputs = model(pixel_values=images)
+                loss = outputs.loss  # The Hugging Face model calculates the loss internally
+                
+                # Backward pass and optimization
+                if isinstance(model, nn.DataParallel):
+                    loss = loss.mean()
+                
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                scaler.step(optimizer)
+                scaler.update()
+        else:
+            # Standard precision training
+            outputs = model(pixel_values=images)
+            loss = outputs.loss  # The Hugging Face model calculates the loss internally
+
+            # Backward pass and optimization
+            if isinstance(model, nn.DataParallel):
+                loss = loss.mean()
+                
+            loss.backward()
+            
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
 
         total_loss += loss.item()
 

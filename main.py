@@ -1,39 +1,50 @@
 import torch
+import torch.nn as nn
+from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR
 import time
 import wandb
 from data import get_dataloaders
-from model import create_mae_model
+from mae_model import create_mae_model
 from train_and_eval import train_mae_one_epoch, evaluate_linear_probe
+import argparse
 
 
 if __name__ == '__main__':
+    # --- Argument Parser for Resuming ---
+    parser = argparse.ArgumentParser(description="Galaxy MAE Training")
+    parser.add_argument("--resume_checkpoint", type=str, default=None, help="Path to checkpoint to resume training from.")
+    parser.add_argument("--start_epoch", type=int, default=1, help="Epoch to start training from (for resuming).")
+    parser.add_argument("--resume_wandb_id", type=str, default=None, help="W&B run ID to resume logging to a previous run.")
+    args = parser.parse_args()
+    
     # --- HYPERPARAMETERS ---
     config = {
         # General Training Settings
-        "epochs": 400,
+        "epochs": 150,
         "batch_size": 64,
         "num_workers": 4,
-        "lr_mae": 5e-5,
-        "probe_epochs": 40,
-        "warmup_epochs": 40,
+        "lr_mae": 1e-4,
+        "probe_epochs": 10,
+        "warmup_epochs": 10,
         "min_lr": 1e-6,
         "weight_decay": 0.05,
         
-        # MAE Model Configuration - Slightly larger for a longer run
+        # MAE Model Configuration 
         "image_size": 256,
-        "patch_size": 16,
-        "embed_dim": 756,
-        "encoder_depth": 12,
-        "encoder_heads": 12,
-        "decoder_embed_dim": 512,
-        "decoder_depth": 8,
-        "decoder_heads": 16
+        "patch_size": 32,
+        "embed_dim": 384,
+        "encoder_depth": 8,
+        "encoder_heads": 8,
+        "decoder_embed_dim": 192,
+        "decoder_depth": 6,
+        "decoder_heads": 6,
+        "mlp_ratio": 4.0
     }   
 
     DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 
     # --- 1. SETUP ---
-    wandb.init(project="galaxy-mae-pretraining", config=config)
+    wandb.init(project="galaxy-mae-pretraining", config=config, entity="adam_lalani-brown-university", id=args.resume_wandb_id, resume="allow")
     
     print(f"Using device: {DEVICE}")
     
@@ -47,10 +58,44 @@ if __name__ == '__main__':
         image_size=wandb.config.image_size, patch_size=wandb.config.patch_size, 
         embed_dim=wandb.config.embed_dim, encoder_depth=wandb.config.encoder_depth, 
         encoder_heads=wandb.config.encoder_heads, decoder_embed_dim=wandb.config.decoder_embed_dim, 
-        decoder_depth=wandb.config.decoder_depth, decoder_heads=wandb.config.decoder_heads
-    ).to(DEVICE)
+        decoder_depth=wandb.config.decoder_depth, decoder_heads=wandb.config.decoder_heads,
+        mlp_ratio=wandb.config.mlp_ratio
+    )
+    
+    # --- Load Checkpoint if Provided ---
+    if args.resume_checkpoint:
+        print(f"Resuming training from checkpoint: {args.resume_checkpoint}")
+        mae_model.load_state_dict(torch.load(args.resume_checkpoint, map_location=DEVICE))
 
-    mae_optimizer = torch.optim.AdamW(mae_model.parameters(), lr=wandb.config.lr_mae)
+
+    if DEVICE == 'cuda' and torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs!")
+        mae_model = nn.DataParallel(mae_model)
+
+    mae_model.to(DEVICE)
+
+    model_to_optimize = mae_model.module if isinstance(mae_model, nn.DataParallel) else mae_model
+    
+    
+    mae_optimizer = torch.optim.AdamW(
+        model_to_optimize.parameters(), 
+        lr=wandb.config.lr_mae, 
+        weight_decay=wandb.config.weight_decay
+    )
+
+    # --- Setup Learning Rate Scheduler ---
+    warmup_scheduler = LinearLR(mae_optimizer, start_factor=0.01, total_iters=wandb.config.warmup_epochs)
+    main_scheduler = CosineAnnealingLR(
+        mae_optimizer, 
+        T_max=wandb.config.epochs - wandb.config.warmup_epochs, 
+        eta_min=wandb.config.min_lr
+    )
+    scheduler = SequentialLR(
+        mae_optimizer, 
+        schedulers=[warmup_scheduler, main_scheduler], 
+        milestones=[wandb.config.warmup_epochs]
+    )
+
 
     # --- 2. MAIN TRAINING LOOP ---
     print("\nStarting MAE Pre-training and Evaluation...")
@@ -68,10 +113,11 @@ if __name__ == '__main__':
             "mae_loss": avg_mae_loss,
         }
         
-        # c. Evaluate with Linear Probe periodically (every 10 epochs)
-        if epoch % 10 == 0:
+        # c. Evaluate with Linear Probe at the end 
+        if epoch % epoch == 0:
+            encoder_to_probe = mae_model.module.vit if isinstance(mae_model, nn.DataParallel) else mae_model.vit
             probe_accuracy = evaluate_linear_probe(
-                encoder=mae_model.vit, 
+                encoder=encoder_to_probe, 
                 train_loader=probe_train_loader, 
                 test_loader=probe_test_loader, 
                 device=DEVICE,
@@ -79,25 +125,21 @@ if __name__ == '__main__':
             )
             # Add the accuracy to our log dictionary
             log_metrics["probe_accuracy"] = probe_accuracy
+            
+            scheduler.step()
+            log_metrics["learning_rate"] = scheduler.get_last_lr()[0]
         
         # d. Log all collected metrics to W&B in a single call
         wandb.log(log_metrics)
         
         # e. Save a checkpoint periodically
-        if epoch % 10 == 0:
+        if epoch % 25 == 0:
             checkpoint_path = f"mae_galaxy_epoch_{epoch}.pth"
-            torch.save(mae_model.state_dict(), checkpoint_path)
+            # Save the state_dict of the underlying model, not the DataParallel wrapper
+            model_to_save = mae_model.module if isinstance(mae_model, nn.DataParallel) else mae_model
+            torch.save(model_to_save.state_dict(), checkpoint_path)
             # Log the checkpoint artifact to W&B
             wandb.save(checkpoint_path)
             print(f"Checkpoint saved to {checkpoint_path}")
 
     end_time = time.time()
-    total_time_min = (end_time - start_time) / 60
-    print(f"\nTotal training time: {total_time_min:.2f} minutes")
-    wandb.log({"total_training_time_minutes": total_time_min})
-
-    # --- 3. FINISH RUN ---
-    wandb.finish()
-    print("\nTraining complete. Results saved to Weights & Biases.")
-
-

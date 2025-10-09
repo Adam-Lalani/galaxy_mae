@@ -1,0 +1,25 @@
+# Core ML and Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0
+
+# Data Processing and Datasets
+datasets>=2.12.0
+huggingface-hub>=0.16.0
+
+# Visualization and Plotting
+matplotlib>=3.7.0
+numpy>=1.24.0
+
+# Progress Bars and Utilities
+tqdm>=4.65.0
+
+# Experiment Tracking
+wandb>=0.15.0
+
+# Jupyter Notebook Support (for visualization)
+jupyter>=1.0.0
+ipywidgets>=8.0.0
+
+# Optional: For better performance
+pillow>=9.5.0

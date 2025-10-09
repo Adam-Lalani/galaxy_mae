@@ -15,6 +15,4 @@ checkpoints/
 # Jupyter notebooks
 .ipynb_checkpoints/
 
-# Visualization notebooks
-/visualize_checkpoint.ipynb
 
