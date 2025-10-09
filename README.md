@@ -7,7 +7,7 @@ This repository implements a Masked Autoencoder (MAE) for self-supervised learni
 ### 1. Clone and Setup
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Adam-Lalani/galaxy_mae.git
 cd MAE_galaxy
 pip install -r requirements.txt
 ```
